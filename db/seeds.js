@@ -1,13 +1,14 @@
 var fetch = require('node-fetch')
 var users = require('../services/users')
+var async = require('async')
 
 fetch('http://api.randomuser.me?nat=us&results=100')
   .then(function(res) {
     return res.json()
   }).then(function(json) {
-    for(var result of json.results) {
-      users.createUser({
-        password: result.user.password,
+    async.eachLimit(json.results, 10, function(result, cb){
+      var user = {
+        password: 'password',
         emailAddress: result.user.email,
         firstName: result.user.name.first,
         lastName: result.user.name.last,
@@ -18,9 +19,19 @@ fetch('http://api.randomuser.me?nat=us&results=100')
         pictureUrl: result.user.picture.large,
         city: result.user.location.city,
         state: result.user.location.state
-      },
-        function(user){
-        console.log('Created User', user)
-      })
-    }
+      }
+      console.log('Creating user', user.emailAddress)
+      users.createUser(user,
+        function(newUser){
+          console.log('Created user', newUser.emailAddress, 'with id', newUser.id)
+          cb()
+        }
+      )
+    }, function(err){
+      if(err) {
+        console.log("Failed to load user", err)
+      } else {
+        console.log("Users Loaded")
+      }
+    })
   })
